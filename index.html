@@ -386,7 +386,7 @@ init();
 /* ── GLOBE ANIMATION ── */
 const canvas = document.getElementById('globeCanvas');
 const ctx = canvas.getContext('2d');
-let W,H,cx,cy,rotY=0,time=0,particles=[];
+let W,H,cx,cy,rotY=0,tiltX=0,bobY=0,time=0,particles=[];
 
 const FAM = [
   {chars:'$%&?@#*',     color:[232,160,32]},
@@ -453,20 +453,16 @@ class Ptc {
     const fi=Math.min(1,this.life/28);
     const fo=Math.min(1,(this.maxLife-this.life)/28);
     a*=fi*fo;
-    ctx.save();
     ctx.globalAlpha=a;
     ctx.fillStyle=`rgb(${r},${g},${b})`;
-    ctx.shadowColor=`rgba(${r},${g},${b},.55)`;
-    ctx.shadowBlur=this.noisy?0:5;
     ctx.font=`bold ${this.size}px "Share Tech Mono",monospace`;
     ctx.fillText(ch,this.x,this.y);
-    ctx.restore();
   }
 }
 
 function drawGlobe() {
   const R=Math.min(W,H)*.40;
-  const gx=cx,gy=cy;
+  const gx=cx, gy=cy+bobY;
   const grad=ctx.createRadialGradient(gx,gy,0,gx,gy,R*1.12);
   grad.addColorStop(0,'rgba(57,211,83,.07)');
   grad.addColorStop(.6,'rgba(57,211,83,.03)');
@@ -474,64 +470,59 @@ function drawGlobe() {
   ctx.beginPath();ctx.arc(gx,gy,R*1.12,0,Math.PI*2);
   ctx.fillStyle=grad;ctx.fill();
 
-  const MER=18,PAR=10,ST=60;
+  /* batch lines by alpha — 2 paths instead of 1680 strokes */
+  const MER=12,PAR=8,ST=40;
+  ctx.shadowBlur=0;
   ctx.lineWidth=1.1;
-  ctx.shadowColor='rgba(57,211,83,.5)';
-  ctx.shadowBlur=8;
+
+  const pathF=new Path2D(), pathB=new Path2D();
   for(let m=0;m<MER;m++){
     const lon0=(m/MER)*Math.PI*2+rotY;
     let prev=null;
     for(let s=0;s<=ST;s++){
       const lat=(s/ST)*Math.PI-Math.PI/2;
       const x3=Math.cos(lat)*Math.cos(lon0);
-      const y3=Math.sin(lat);
-      const z3=Math.cos(lat)*Math.sin(lon0);
-      const sx=gx+R*x3, sy=gy+R*y3*.83;
-      const al=z3>0?.55:.08;
-      if(prev){
-        ctx.beginPath();
-        ctx.moveTo(prev[0],prev[1]);ctx.lineTo(sx,sy);
-        ctx.strokeStyle=`rgba(57,211,83,${al})`;ctx.stroke();
-      }
+      const y3r=Math.sin(lat)*Math.cos(tiltX)-Math.cos(lat)*Math.sin(lon0)*Math.sin(tiltX);
+      const z3=Math.cos(lat)*Math.sin(lon0)*Math.cos(tiltX)+Math.sin(lat)*Math.sin(tiltX);
+      const sx=gx+R*x3, sy=gy+R*y3r*.83;
+      if(prev){ const p=z3>0?pathF:pathB; p.moveTo(prev[0],prev[1]); p.lineTo(sx,sy); }
       prev=[sx,sy];
     }
   }
   for(let p=1;p<PAR;p++){
     const lat=(p/PAR)*Math.PI-Math.PI/2;
     const r2=Math.cos(lat)*R;
-    const sy=gy+Math.sin(lat)*R*.83;
     let prev=null;
     for(let s=0;s<=ST;s++){
       const lon=(s/ST)*Math.PI*2+rotY;
-      const x3=Math.cos(lon),z3=Math.sin(lon);
-      const sx=gx+r2*x3;
-      const al=z3>0?.16:.03;
-      if(prev){
-        ctx.beginPath();ctx.moveTo(prev[0],sy);ctx.lineTo(sx,sy);
-        ctx.strokeStyle=`rgba(57,211,83,${al})`;ctx.stroke();
-      }
+      const x3=Math.cos(lon), sinLon=Math.sin(lon);
+      const sinLat=Math.sin(lat), cosLat=Math.cos(lat);
+      const y3r=sinLat*Math.cos(tiltX)-cosLat*sinLon*Math.sin(tiltX);
+      const z3=cosLat*sinLon*Math.cos(tiltX)+sinLat*Math.sin(tiltX);
+      const sx=gx+r2*x3, sy=gy+R*y3r*.83;
+      if(prev){ const pp=z3>0?pathF:pathB; pp.moveTo(prev[0],prev[1]); pp.lineTo(sx,sy); }
       prev=[sx,sy];
     }
   }
+  ctx.strokeStyle='rgba(57,211,83,.08)'; ctx.stroke(pathB);
+  ctx.strokeStyle='rgba(57,211,83,.50)'; ctx.stroke(pathF);
+
   ctx.setLineDash([4,8]);
   ctx.strokeStyle='rgba(57,211,83,.12)';ctx.lineWidth=.8;
   ctx.beginPath();ctx.moveTo(gx-R*1.25,gy);ctx.lineTo(gx+R*1.25,gy);ctx.stroke();
   ctx.beginPath();ctx.moveTo(gx,gy-R*1.25);ctx.lineTo(gx,gy+R*1.25);ctx.stroke();
   ctx.setLineDash([]);
-  ctx.beginPath();ctx.arc(gx,gy,R*1.03,0,Math.PI*2);
-  ctx.strokeStyle='rgba(57,211,83,.05)';ctx.lineWidth=1;ctx.stroke();
   ctx.beginPath();ctx.arc(gx,gy,3,0,Math.PI*2);
-  ctx.fillStyle='rgba(57,211,83,.45)';ctx.shadowColor='rgba(57,211,83,.9)';ctx.shadowBlur=10;
-  ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(57,211,83,.6)';ctx.fill();
 }
 
 function drawGrid(){
-  const sp=42;
+  const sp=42, r=Math.min(W,H)*.52;
   for(let x=0;x<W;x+=sp) for(let y=0;y<H;y+=sp){
-    const d=Math.hypot(x-cx,y-cy);
-    const f=Math.max(0,1-d/(Math.min(W,H)*.52));
-    ctx.beginPath();ctx.arc(x,y,.4,0,Math.PI*2);
-    ctx.fillStyle=`rgba(57,211,83,${.035*f})`;ctx.fill();
+    const f=Math.max(0,1-Math.hypot(x-cx,y-cy)/r);
+    if(f<.01) continue;
+    ctx.fillStyle=`rgba(57,211,83,${(.035*f).toFixed(3)})`;
+    ctx.fillRect(x-.5,y-.5,1,1);
   }
 }
 
@@ -551,16 +542,24 @@ function drawDataLines(){
 
 function initPtcs(){
   particles=[];
-  const n=Math.floor((W*H)/16000);
+  const n=Math.floor((W*H)/24000);
   for(let i=0;i<n;i++) particles.push(new Ptc(true));
 }
 
-function frame(){
+let _gLastT=0;
+function frame(ts){
+  if(ts-_gLastT < 33){requestAnimationFrame(frame);return;}
+  _gLastT=ts;
   time++;rotY+=.0025;
+  tiltX = Math.sin(time*.006)*.18 + Math.sin(time*.0037)*.08;
+  bobY  = Math.sin(time*.005)*H*.022;
   ctx.clearRect(0,0,W,H);
   drawGrid();drawDataLines();drawGlobe();
+  ctx.save();
+  ctx.shadowBlur=0;
   ctx.lineWidth=.5;
   particles.forEach(p=>{p.update();p.draw();});
+  ctx.restore();
   requestAnimationFrame(frame);
 }
 
@@ -607,8 +606,8 @@ resize();initPtcs();frame();
       this.y   = scatter ? Math.random()*BH : (Math.random()<.5 ? -16 : BH+16);
       this.vy  = (Math.random()<.5 ? -1 : 1) * (Math.random()*.3 + .1);
       this.vx  = (Math.random()-.5) * .03;
-      this.sz  = [15,18,21][Math.floor(Math.random()*3)];
-      this.a   = Math.random()*.38 + .22;
+      this.sz  = [18,22,26,30][Math.floor(Math.random()*4)];
+      this.a   = Math.random()*.45 + .30;
       this.life = 0;
       this.maxLife = 600 + Math.random()*600;
     }
@@ -634,7 +633,7 @@ resize();initPtcs();frame();
     for(let i=0; i<n; i++) bPtcs.push(new BPtc());
   }
   /* batch by font-size to minimise ctx state changes */
-  const FONTS = [15,18,21];
+  const FONTS = [18,22,26,30];
   function bFrame(ts) {
     if(ts - _lastT < 40) { requestAnimationFrame(bFrame); return; }
     _lastT = ts;
