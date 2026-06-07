@@ -552,4 +552,93 @@ resize();initPtcs();frame();
   const bc = document.getElementById('bgCanvas');
   const bx = bc.getContext('2d');
 
-  // Exact patternretrieval.app character → phosphor c
+/* ─── FULL-PAGE BACKGROUND DRIFT ─── */
+(function(){
+  const bc = document.getElementById('bgCanvas');
+  const bx = bc.getContext('2d');
+
+  const CMAP = {
+    '(':  [57,211,83],  ')': [57,211,83],  '[': [57,211,83],  ']': [57,211,83],
+    '{':  [57,211,83],  '}': [57,211,83],  '<': [57,211,83],  '>': [57,211,83],
+    '$':  [232,160,32], '%': [232,160,32], '&': [232,160,32],
+    '?':  [232,160,32], '@': [232,160,32], '#': [232,160,32], '*': [232,160,32],
+    'E':  [245,200,66], 'F': [245,200,66], 'H': [245,200,66],
+    'I':  [245,200,66], 'L': [245,200,66], 'T': [245,200,66],
+    'f':  [245,200,66], 't': [245,200,66], '+': [245,200,66],
+    '!':  [232,64,64],  ',': [232,64,64],  '.': [232,64,64],
+    "'":  [232,64,64],  '`': [232,64,64],  '"': [232,64,64],
+    '^':  [232,64,64],  '~': [232,64,64],  ':': [232,64,64],  ';': [232,64,64],
+    'A':  [232,160,32], 'K': [232,160,32], 'V': [232,160,32],
+    'W':  [232,160,32], 'X': [232,160,32], 'Y': [232,160,32],
+    'Z':  [232,160,32], '\\': [232,160,32], '/': [232,160,32],
+    'B':  [208,208,200],'C': [208,208,200],'D': [208,208,200],
+    'G':  [208,208,200],'J': [208,208,200],'O': [208,208,200],
+    'P':  [208,208,200],'Q': [208,208,200],'R': [208,208,200],
+    'S':  [208,208,200],'U': [208,208,200],
+    '1':  [155,110,232],'4': [155,110,232],'7': [155,110,232],
+    '=':  [155,110,232],'_': [155,110,232],
+    'i':  [155,110,232],'j': [155,110,232],'l': [155,110,232],'r': [155,110,232],
+    '░': [96,96,96], '▒': [96,96,96], '▓': [96,96,96],
+    '█': [96,96,96], '▌': [96,96,96], '▐': [96,96,96],
+  };
+  const ALL_CHARS = Object.keys(CMAP);
+  let BW, BH;
+
+  class BPtc {
+    reset(scatter) {
+      this.ch  = ALL_CHARS[Math.floor(Math.random()*ALL_CHARS.length)];
+      this.col = CMAP[this.ch];
+      this.x   = Math.random()*BW;
+      this.y   = scatter ? Math.random()*BH : (Math.random()<.5 ? -16 : BH+16);
+      this.vy  = (Math.random()<.5 ? -1 : 1) * (Math.random()*.35 + .12);
+      this.vx  = (Math.random()-.5) * .04;
+      this.sz  = [14,16,18,20][Math.floor(Math.random()*4)];
+      this.a   = Math.random()*.22 + .10;
+      this.life = 0;
+      this.maxLife = 500 + Math.random()*700;
+    }
+    constructor() { this.reset(true); }
+    update() {
+      this.x += this.vx; this.y += this.vy; this.life++;
+      this.x += Math.sin(this.life*.025 + this.x*.01)*.18;
+      if(this.life > this.maxLife || this.y < -30 || this.y > BH+30) this.reset(false);
+    }
+    draw() {
+      const [r,g,b] = this.col;
+      const fi = Math.min(1, this.life/40);
+      const fo = Math.min(1, (this.maxLife-this.life)/40);
+      const alpha = this.a * fi * fo;
+      if(alpha < .005) return;
+      bx.save();
+      bx.globalAlpha = alpha;
+      bx.fillStyle   = `rgb(${r},${g},${b})`;
+      bx.shadowColor = `rgba(${r},${g},${b},.7)`;
+      bx.shadowBlur  = 6;
+      bx.font        = `${this.sz}px "Share Tech Mono",monospace`;
+      bx.fillText(this.ch, this.x, this.y);
+      bx.restore();
+    }
+  }
+
+  let bPtcs = [];
+  function bResize() {
+    BW = bc.width  = window.innerWidth;
+    BH = bc.height = window.innerHeight;
+    bPtcs = [];
+    const n = Math.floor((BW*BH)/18000);
+    for(let i=0; i<n; i++) bPtcs.push(new BPtc());
+  }
+  function bFrame() {
+    bx.clearRect(0,0,BW,BH);
+    bPtcs.forEach(p => { p.update(); p.draw(); });
+    requestAnimationFrame(bFrame);
+  }
+  window.addEventListener('resize', bResize);
+  bResize(); bFrame();
+})();
+</script>
+
+<script async src="https://platform.twitter.com/widgets.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</body>
+</html>
