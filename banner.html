@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PATTERN RETRIEVAL</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #080a0b;
+  overflow: hidden;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+#banner {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #080a0b;
+}
+
+/* CANVAS */
+#globeCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* SCANLINES */
+#banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.08) 3px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* VIGNETTE */
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center,
+    transparent 40%,
+    rgba(0,0,0,0.55) 100%
+  );
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* CORNER CROSSHAIRS */
+.crosshair {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  z-index: 20;
+}
+.crosshair::before,
+.crosshair::after {
+  content: '';
+  position: absolute;
+  background: rgba(57,211,83,0.5);
+}
+.crosshair.tl { top: 32px; left: 32px; }
+.crosshair.tr { top: 32px; right: 32px; transform: scaleX(-1); }
+.crosshair.bl { bottom: 32px; left: 32px; transform: scaleY(-1); }
+.crosshair.br { bottom: 32px; right: 32px; transform: scale(-1); }
+
+.crosshair::before { width: 20px; height: 1px; top: 0; left: 0; }
+.crosshair::after  { width: 1px; height: 20px; top: 0; left: 0; }
+
+.ch-dot {
+  position: absolute;
+  width: 3px; height: 3px;
+  background: rgba(57,211,83,0.8);
+  box-shadow: 0 0 6px rgba(57,211,83,0.6);
+  top: 0; left: 0;
+}
+
+/* PLUS MARKERS */
+.plus {
+  position: absolute;
+  z-index: 20;
+  color: rgba(57,211,83,0.25);
+  font-size: 12px;
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 0;
+  line-height: 1;
+  text-shadow: 0 0 6px rgba(57,211,83,0.3);
+}
+
+/* CONTENT */
+.content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  text-align: center;
+  gap: 0;
+}
+
+.tag-line {
+  font-size: 10px;
+  letter-spacing: 4px;
+  color: rgba(57,211,83,0.6);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tag-dash {
+  width: 24px; height: 1px;
+  background: rgba(57,211,83,0.4);
+}
+
+.main-title {
+  font-family: 'VT323', monospace;
+  font-size: clamp(52px, 8vw, 96px);
+  color: #39d353;
+  letter-spacing: 8px;
+  line-height: 1;
+  text-shadow:
+    0 0 20px rgba(57,211,83,0.5),
+    0 0 60px rgba(57,211,83,0.15);
+  margin-bottom: 6px;
+  animation: titleFlicker 8s ease-in-out infinite;
+}
+
+@keyframes titleFlicker {
+  0%,95%,100% { opacity: 1; }
+  96% { opacity: 0.85; }
+  97% { opacity: 1; }
+  98% { opacity: 0.9; }
+}
+
+.title-rule {
+  width: clamp(300px, 50vw, 600px);
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(57,211,83,0.4) 20%,
+    rgba(57,211,83,0.4) 80%,
+    transparent
+  );
+  margin: 14px auto;
+}
+
+.sub-title {
+  font-family: 'VT323', monospace;
+  font-size: clamp(16px, 2.5vw, 22px);
+  color: rgba(57,211,83,0.45);
+  letter-spacing: 5px;
+  margin-bottom: 28px;
+}
+
+.descriptor {
+  font-size: clamp(9px, 1.2vw, 11px);
+  color: rgba(90,95,90,0.8);
+  letter-spacing: 2px;
+  line-height: 2;
+  max-width: 440px;
+  margin-bottom: 36px;
+}
+.descriptor span { color: rgba(57,211,83,0.5); }
+
+.btn-row {
+  display: flex;
+  gap: 12px;
+}
+
+.cta-btn {
+  padding: 10px 28px;
+  border: 1px solid rgba(57,211,83,0.5);
+  color: #39d353;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 2px;
+  text-decoration: none;
+  display: inline-block;
+  transition: all .2s;
+  text-shadow: 0 0 8px rgba(57,211,83,0.4);
+}
+.cta-btn:hover {
+  background: rgba(57,211,83,0.08);
+  box-shadow: 0 0 20px rgba(57,211,83,0.12);
+  letter-spacing: 4px;
+}
+.cta-btn.ghost {
+  border-color: rgba(90,95,90,0.3);
+  color: rgba(90,95,90,0.7);
+  text-shadow: none;
+}
+.cta-btn.ghost:hover {
+  border-color: rgba(90,95,90,0.5);
+  color: rgba(160,165,160,0.8);
+  background: rgba(90,95,90,0.05);
+  letter-spacing: 3px;
+}
+
+/* STATUS BAR */
+.status-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 14px 40px;
+  border-top: 1px solid rgba(30,32,30,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 20;
+  background: rgba(8,10,11,0.6);
+  backdrop-filter: blur(4px);
+}
+
+.status-left { display: flex; gap: 28px; align-items: center; }
+.status-item { font-size: 9px; letter-spacing: 2px; color: rgba(42,46,42,0.9); }
+.status-item span { color: rgba(90,95,90,0.8); }
+
+.status-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #39d353;
+  box-shadow: 0 0 6px #39d353;
+  animation: blink 2.5s ease-in-out infinite;
+  display: inline-block;
+  margin-right: 7px;
+  vertical-align: middle;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.status-right { font-size: 9px; letter-spacing: 2px; color: rgba(42,46,42,0.7); }
+
+/* TOP BAR */
+.top-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 14px 40px;
+  border-bottom: 1px solid rgba(30,32,30,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 20;
+}
+.top-logo {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: rgba(57,211,83,0.7);
+  letter-spacing: 3px;
+}
+.top-logo span { color: rgba(42,46,42,0.8); }
+.top-links { display: flex; gap: 24px; }
+.top-link {
+  font-size: 9px; letter-spacing: 2px;
+  color: rgba(42,46,42,0.8);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color .15s;
+}
+.top-link:hover { color: rgba(57,211,83,0.6); }
+
+/* SIDE LABELS */
+.side-label {
+  position: absolute;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: rgba(42,46,42,0.5);
+  z-index: 20;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+.side-label.left  { left: 20px; top: 50%; transform: translateY(-50%) rotate(180deg); }
+.side-label.right { right: 20px; top: 50%; transform: translateY(-50%); }
+
+/* SCAN LINE ANIMATION */
+.scan-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(57,211,83,0.08), transparent);
+  z-index: 8;
+  animation: scanDown 6s linear infinite;
+  pointer-events: none;
+}
+@keyframes scanDown {
+  0%  { top: -1px; opacity: 0; }
+  5%  { opacity: 1; }
+  95% { opacity: 1; }
+  100%{ top: 100%; opacity: 0; }
+}
+
+/* COORD DISPLAY */
+.coord {
+  position: absolute;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: rgba(57,211,83,0.2);
+  z-index: 20;
+  font-family: 'Share Tech Mono', monospace;
+}
+.coord.c1 { top: 88px; left: 44px; }
+.coord.c2 { top: 88px; right: 44px; text-align: right; }
+.coord.c3 { bottom: 54px; left: 44px; }
+.coord.c4 { bottom: 54px; right: 44px; text-align: right; }
+</style>
+</head>
+<body>
+
+<div id="banner">
+
+  <!-- CANVAS BG -->
+  <canvas id="globeCanvas"></canvas>
+
+  <!-- VIGNETTE -->
+  <div class="vignette"></div>
+
+  <!-- SCAN LINE -->
+  <div class="scan-line"></div>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="top-logo">PATTERN<span>//</span>RETRIEVAL</div>
+    <div class="top-links">
+      <a class="top-link">ARCHIVE</a>
+      <a class="top-link">SPECIMENS</a>
+      <a class="top-link">STATEMENT</a>
+      <a class="top-link" style="color:rgba(57,211,83,.5)">▸ MINT</a>
+    </div>
+  </div>
+
+  <!-- CORNER CROSSHAIRS -->
+  <div class="crosshair tl"><div class="ch-dot"></div></div>
+  <div class="crosshair tr"><div class="ch-dot" style="left:auto;right:0"></div></div>
+  <div class="crosshair bl"><div class="ch-dot" style="top:auto;bottom:0"></div></div>
+  <div class="crosshair br"><div class="ch-dot" style="top:auto;bottom:0;left:auto;right:0"></div></div>
+
+  <!-- PLUS MARKERS -->
+  <div class="plus" style="top:50%;left:10%;transform:translate(-50%,-50%)">+</div>
+  <div class="plus" style="top:50%;right:10%;transform:translate(50%,-50%)">+</div>
+  <div class="plus" style="top:20%;left:50%;transform:translate(-50%,-50%)">+</div>
+  <div class="plus" style="top:80%;left:50%;transform:translate(-50%,-50%)">+</div>
+  <div class="plus" style="top:30%;left:20%;transform:translate(-50%,-50%)">+</div>
+  <div class="plus" style="top:70%;right:20%;transform:translate(50%,-50%)">+</div>
+
+  <!-- COORDS -->
+  <div class="coord c1">00°N · 00°W</div>
+  <div class="coord c2">94 SPECIMENS</div>
+  <div class="coord c3">HEBBIAN · λ=0.35</div>
+  <div class="coord c4">8 PASS · ONLINE</div>
+
+  <!-- SIDE LABELS -->
+  <div class="side-label left">GENERATIVE · ONCHAIN · MEMORY TYPE</div>
+  <div class="side-label right">ASCII 32–126 · 7 FAMILIES · 478 NFTs</div>
+
+  <!-- MAIN CONTENT -->
+  <div class="content">
+    <div class="tag-line">
+      <div class="tag-dash"></div>
+      GENERATIVE ART · HOPFIELD NETWORK
+      <div class="tag-dash"></div>
+    </div>
+
+    <div class="main-title">PATTERN RETRIEVAL</div>
+
+    <div class="title-rule"></div>
+
+    <div class="sub-title">MEMORY UNDER PRESSURE</div>
+
+    <div class="descriptor">
+      Every printable ASCII character stored in a Hopfield network.<br>
+      <span>Shattered into noise.</span> And then recalled.
+    </div>
+
+    <div class="btn-row">
+      <a class="cta-btn" href="#">▸ VIEW ARCHIVE</a>
+      <a class="cta-btn ghost" href="#">LEARN MORE</a>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-left">
+      <div class="status-item">
+        <span class="status-dot"></span>STATUS: <span>ONLINE</span>
+      </div>
+      <div class="status-item">NETWORK: <span>HEBBIAN</span></div>
+      <div class="status-item">SPECIMENS: <span>94</span></div>
+      <div class="status-item">FAMILIES: <span>7</span></div>
+    </div>
+    <div class="status-right">▮ END OF LINE</div>
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById('globeCanvas');
+const ctx = canvas.getContext('2d');
+
+let W, H, cx, cy;
+let rotY = 0;
+let particles = [];
+let time = 0;
+
+const FAMILIES = [
+  { chars: '$%&?@#*',      color: [232,160,32],  name: 'dense'     },
+  { chars: '()[]{}⟨⟩<>',  color: [57,211,83],   name: 'containers'},
+  { chars: "!·,.'`\"^~-_", color: [232,64,64],   name: 'floating'  },
+  { chars: 'EFHILTft+=-',  color: [245,200,66],  name: 'crossbars' },
+  { chars: '░▒▓█▌▐▄▀',    color: [96,96,96],    name: 'ghosts'    },
+  { chars: 'AKVWXYZ\\/><', color: [232,160,32],  name: 'angles'    },
+  { chars: 'BCDGJOPQRSU',  color: [208,208,200], name: 'curves'    },
+];
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  cx = W / 2;
+  cy = H / 2;
+}
+
+function randFamily() {
+  return FAMILIES[Math.floor(Math.random() * FAMILIES.length)];
+}
+
+function randChar(fam) {
+  return fam.chars[Math.floor(Math.random() * fam.chars.length)];
+}
+
+class Particle {
+  constructor() { this.reset(true); }
+
+  reset(init = false) {
+    const fam = randFamily();
+    this.char  = randChar(fam);
+    this.color = fam.color;
+    this.x  = Math.random() * W;
+    this.y  = init ? Math.random() * H : (Math.random() < 0.5 ? -20 : H + 20);
+    this.vx = (Math.random() - 0.5) * 0.25;
+    this.vy = (Math.random() - 0.5) * 0.25;
+    this.size   = Math.floor(Math.random() * 4) * 2 + 8;
+    this.alpha  = Math.random() * 0.35 + 0.05;
+    this.life   = 0;
+    this.maxLife = 400 + Math.random() * 600;
+    this.noiseTimer = Math.random() * 200;
+    this.noisy  = false;
+    this.noiseAmt = 0;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life++;
+    this.noiseTimer--;
+
+    if (this.noiseTimer <= 0) {
+      if (!this.noisy) {
+        this.noisy = true;
+        this.noiseAmt = 1;
+        this.noiseTimer = 30;
+      } else {
+        this.noiseAmt -= 0.06;
+        if (this.noiseAmt <= 0) {
+          this.noisy = false;
+          this.noiseAmt = 0;
+          const fam = randFamily();
+          this.char  = randChar(fam);
+          this.color = fam.color;
+          this.noiseTimer = 150 + Math.random() * 300;
+        }
+      }
+    }
+
+    if (this.life > this.maxLife ||
+        this.x < -30 || this.x > W + 30 ||
+        this.y < -30 || this.y > H + 30) {
+      this.reset();
+    }
+  }
+
+  draw() {
+    const [r, g, b] = this.color;
+    let a = this.alpha;
+    let ch = this.char;
+
+    if (this.noisy && this.noiseAmt > 0) {
+      // Replace with noise characters
+      const noiseChars = '▓▒░█■□▪▫';
+      if (Math.random() < this.noiseAmt * 0.6) {
+        ch = noiseChars[Math.floor(Math.random() * noiseChars.length)];
+      }
+      a = this.alpha * (1 - this.noiseAmt * 0.3);
+    }
+
+    // Fade in/out
+    const fadeIn  = Math.min(1, this.life / 30);
+    const fadeOut = Math.min(1, (this.maxLife - this.life) / 30);
+    a *= fadeIn * fadeOut;
+
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.shadowColor = `rgba(${r},${g},${b},0.6)`;
+    ctx.shadowBlur  = this.noisy ? 0 : 6;
+    ctx.font = `bold ${this.size}px "Share Tech Mono", monospace`;
+    ctx.fillText(ch, this.x, this.y);
+    ctx.restore();
+  }
+}
+
+// Globe
+function drawGlobe() {
+  const R = Math.min(W, H) * 0.30;
+  const gx = cx, gy = cy;
+
+  // Back glow
+  const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, R * 1.1);
+  grad.addColorStop(0, 'rgba(57,211,83,0.03)');
+  grad.addColorStop(0.5, 'rgba(57,211,83,0.015)');
+  grad.addColorStop(1, 'transparent');
+  ctx.beginPath();
+  ctx.arc(gx, gy, R * 1.1, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  const MERIDIANS  = 18;
+  const PARALLELS  = 10;
+  const STEPS = 64;
+
+  // Draw meridians
+  for (let m = 0; m < MERIDIANS; m++) {
+    const lon0 = (m / MERIDIANS) * Math.PI * 2 + rotY;
+    ctx.beginPath();
+    let started = false;
+    for (let s = 0; s <= STEPS; s++) {
+      const lat = (s / STEPS) * Math.PI - Math.PI / 2;
+      const x3 = Math.cos(lat) * Math.cos(lon0);
+      const y3 = Math.sin(lat);
+      const z3 = Math.cos(lat) * Math.sin(lon0);
+      const sx = gx + R * x3;
+      const sy = gy + R * y3 * 0.82;
+      const alpha = z3 > 0 ? 0.22 : 0.04;
+      if (!started) {
+        ctx.moveTo(sx, sy); started = true;
+        ctx.strokeStyle = `rgba(57,211,83,${alpha})`;
+      } else {
+        ctx.strokeStyle = `rgba(57,211,83,${alpha})`;
+        ctx.lineTo(sx, sy);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+      }
+    }
+  }
+
+  // Draw parallels
+  for (let p = 1; p < PARALLELS; p++) {
+    const lat = (p / PARALLELS) * Math.PI - Math.PI / 2;
+    const r2  = Math.cos(lat) * R;
+    const sy  = gy + Math.sin(lat) * R * 0.82;
+
+    for (let s = 0; s <= STEPS; s++) {
+      const lon = (s / STEPS) * Math.PI * 2 + rotY;
+      const x3  = Math.cos(lon);
+      const z3  = Math.sin(lon);
+      const sx  = gx + r2 * x3;
+      const alpha = z3 > 0 ? 0.18 : 0.035;
+
+      if (s === 0) {
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+      } else {
+        ctx.strokeStyle = `rgba(57,211,83,${alpha})`;
+        ctx.lineTo(sx, sy);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+      }
+    }
+  }
+
+  // Equator highlight
+  ctx.beginPath();
+  for (let s = 0; s <= STEPS; s++) {
+    const lon = (s / STEPS) * Math.PI * 2 + rotY;
+    const x3  = Math.cos(lon);
+    const z3  = Math.sin(lon);
+    const sx  = gx + R * x3;
+    const sy2 = gy;
+    const alpha = z3 > 0 ? 0.35 : 0.06;
+    ctx.strokeStyle = `rgba(57,211,83,${alpha})`;
+    if (s === 0) {
+      ctx.beginPath(); ctx.moveTo(sx, sy2);
+    } else {
+      ctx.lineTo(sx, sy2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(sx, sy2);
+    }
+  }
+
+  // Center crosshair on globe
+  ctx.strokeStyle = 'rgba(57,211,83,0.15)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 8]);
+  ctx.beginPath();
+  ctx.moveTo(gx - R * 1.2, gy);
+  ctx.lineTo(gx + R * 1.2, gy);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(gx, gy - R * 1.2);
+  ctx.lineTo(gx, gy + R * 1.2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Globe center dot
+  ctx.beginPath();
+  ctx.arc(gx, gy, 3, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(57,211,83,0.4)';
+  ctx.shadowColor = 'rgba(57,211,83,0.8)';
+  ctx.shadowBlur  = 8;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Reticle ring
+  ctx.beginPath();
+  ctx.arc(gx, gy, R * 1.02, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(57,211,83,0.06)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+// Grid dots background
+function drawGrid() {
+  const spacing = 40;
+  for (let x = 0; x < W; x += spacing) {
+    for (let y = 0; y < H; y += spacing) {
+      const dist = Math.hypot(x - cx, y - cy);
+      const maxR = Math.min(W, H) * 0.5;
+      const fade = Math.max(0, 1 - dist / maxR);
+      ctx.beginPath();
+      ctx.arc(x, y, 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(57,211,83,${0.04 * fade})`;
+      ctx.fill();
+    }
+  }
+}
+
+// Horizontal data lines
+function drawDataLines() {
+  const lines = [cy - H*0.3, cy - H*0.15, cy, cy + H*0.15, cy + H*0.3];
+  lines.forEach((y, i) => {
+    if (i === 2) return;
+    const pct = (time * 0.0003 + i * 0.4) % 1;
+    const x1 = 0, x2 = W;
+    const grd = ctx.createLinearGradient(x1, 0, x2, 0);
+    grd.addColorStop(0, 'transparent');
+    grd.addColorStop(Math.max(0, pct - 0.15), 'transparent');
+    grd.addColorStop(pct, 'rgba(57,211,83,0.06)');
+    grd.addColorStop(Math.min(1, pct + 0.15), 'transparent');
+    grd.addColorStop(1, 'transparent');
+    ctx.beginPath();
+    ctx.moveTo(x1, y); ctx.lineTo(x2, y);
+    ctx.strokeStyle = grd;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+}
+
+// Init particles
+function initParticles() {
+  particles = [];
+  const count = Math.floor((W * H) / 18000);
+  for (let i = 0; i < count; i++) {
+    particles.push(new Particle());
+  }
+}
+
+function frame() {
+  time++;
+  rotY += 0.003;
+
+  ctx.fillStyle = '#080a0b';
+  ctx.fillRect(0, 0, W, H);
+
+  drawGrid();
+  drawDataLines();
+  drawGlobe();
+
+  // Draw particles (behind globe mostly)
+  ctx.lineWidth = 0.5;
+  particles.forEach(p => {
+    p.update();
+    p.draw();
+  });
+
+  requestAnimationFrame(frame);
+}
+
+window.addEventListener('resize', () => { resize(); initParticles(); });
+resize();
+initParticles();
+frame();
+</script>
+</body>
+</html>
