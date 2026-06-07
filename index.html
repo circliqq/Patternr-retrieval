@@ -203,6 +203,7 @@
 <div class="toast" id="toast">✓ SPECIMEN ADDED TO ARCHIVE</div>
 
 <!-- ══ SCRIPTS ══ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ── NAV SCROLL ── */
 window.addEventListener('scroll', () => {
@@ -234,7 +235,7 @@ async function init() {
   if (db) {
     localStorage.removeItem('pr_archive_v2'); // clear old local data
     try {
-      const { data, error } = await db.from('submissions').select('*').order('created_at', { ascending: false });
+      const { data, error } = await db.from('submissions').select('*').order('id', { ascending: false });
       if (!error && data) submissions = data;
     } catch(e) {}
 
@@ -660,6 +661,5 @@ resize();initPtcs();frame();
 })();
 </script>
 <script async src="https://platform.twitter.com/widgets.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
 </html>
