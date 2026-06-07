@@ -257,6 +257,58 @@ function refresh() {
   document.getElementById('footerCount').textContent  = submissions.length + ' SPECIMENS SUBMITTED';
 }
 
+function makeCard(item) {
+  const c = document.createElement('div');
+  c.className = 'gcard';
+  if (item.img) {
+    const img = document.createElement('img');
+    img.src = item.img; img.alt = item.title; img.loading = 'lazy';
+    img.onclick = function(){ openLB(item.img); };
+    const body = document.createElement('div'); body.className = 'gcard-body';
+    const top = document.createElement('div'); top.className = 'gcard-top';
+    const cat = document.createElement('span');
+    cat.className = 'gcat cat-' + item.cat;
+    cat.textContent = CAT_LABELS[item.cat] || 'OTHER';
+    const auth = document.createElement('span'); auth.className = 'gauthor';
+    if (item.twitter) {
+      const a = document.createElement('a');
+      a.href = item.twitter; a.target = '_blank'; a.textContent = item.author;
+      auth.appendChild(a);
+    } else { auth.textContent = item.author; }
+    top.appendChild(cat); top.appendChild(auth);
+    const title = document.createElement('div'); title.className = 'gtitle'; title.textContent = item.title;
+    const date = document.createElement('div'); date.className = 'gdate'; date.textContent = item.date;
+    body.appendChild(top); body.appendChild(title);
+    if (item.desc) { const d = document.createElement('div'); d.className = 'gdesc'; d.textContent = item.desc; body.appendChild(d); }
+    body.appendChild(date);
+    c.appendChild(img); c.appendChild(body);
+  } else {
+    const wrap = document.createElement('div'); wrap.className = 'gcard-link-body';
+    const top = document.createElement('div'); top.className = 'gcard-top';
+    top.style.marginBottom = '8px';
+    const cat = document.createElement('span');
+    cat.className = 'gcat cat-' + item.cat;
+    cat.textContent = CAT_LABELS[item.cat] || 'OTHER';
+    const date = document.createElement('span'); date.className = 'gdate'; date.textContent = item.date;
+    top.appendChild(cat); top.appendChild(date);
+    wrap.appendChild(top);
+    if (item.twitter) {
+      const bq = document.createElement('blockquote');
+      bq.className = 'twitter-tweet';
+      bq.setAttribute('data-theme', 'dark');
+      bq.setAttribute('data-align', 'center');
+      bq.setAttribute('data-dnt', 'true');
+      const a = document.createElement('a'); a.href = item.twitter;
+      bq.appendChild(a); wrap.appendChild(bq);
+    } else {
+      const h = document.createElement('div'); h.className = 'glink-handle'; h.textContent = item.author;
+      wrap.appendChild(h);
+    }
+    c.appendChild(wrap);
+  }
+  return c;
+}
+
 function renderGallery(items) {
   const filtered = currentCat === 'all' ? items : items.filter(i => i.cat === currentCat);
   const g = document.getElementById('gallery');
@@ -265,40 +317,7 @@ function renderGallery(items) {
     g.innerHTML = ''; g.appendChild(empty); empty.style.display = 'block'; return;
   }
   empty.style.display = 'none'; g.innerHTML = '';
-  filtered.forEach(item => {
-    const c = document.createElement('div');
-    c.className = 'gcard';
-    if (item.img) {
-      c.innerHTML = `
-        <img src="${item.img}" alt="${item.title}" loading="lazy" onclick="openLB('${item.img.replace(/'/g,"\\'")}')" >
-        <div class="gcard-body">
-          <div class="gcard-top">
-            <span class="gcat cat-${item.cat}">${CAT_LABELS[item.cat]||'OTHER'}</span>
-            <span class="gauthor">${item.twitter?`<a href="${item.twitter}" target="_blank">${item.author}</a>`:item.author}</span>
-          </div>
-          <div class="gtitle">${item.title}</div>
-          ${item.desc?`<div class="gdesc">${item.desc}</div>`:''}
-          <div class="gdate">${item.date}</div>
-        </div>`;
-    } else {
-      // link-only card — Twitter embed
-      c.innerHTML = `
-        <div class="gcard-link-body">
-          <div class="gcard-top" style="margin-bottom:8px">
-            <span class="gcat cat-${item.cat}">${CAT_LABELS[item.cat]||'OTHER'}</span>
-            <span class="gdate">${item.date}</span>
-          </div>
-          ${item.twitter
-            ? `<blockquote class="twitter-tweet" data-theme="dark" data-align="center" data-dnt="true">
-                 <a href="${item.twitter}"></a>
-               </blockquote>`
-            : `<div class="glink-handle">${item.author}</div>`
-          }
-        </div>`;
-    }
-    g.appendChild(c);
-  });
-  // re-render any Twitter embeds added to the DOM
+  filtered.forEach(item => g.appendChild(makeCard(item)));
   if (window.twttr && window.twttr.widgets) window.twttr.widgets.load(g);
 }
 
@@ -552,11 +571,6 @@ resize();initPtcs();frame();
   const bc = document.getElementById('bgCanvas');
   const bx = bc.getContext('2d');
 
-/* ─── FULL-PAGE BACKGROUND DRIFT ─── */
-(function(){
-  const bc = document.getElementById('bgCanvas');
-  const bx = bc.getContext('2d');
-
   const CMAP = {
     '(':  [57,211,83],  ')': [57,211,83],  '[': [57,211,83],  ']': [57,211,83],
     '{':  [57,211,83],  '}': [57,211,83],  '<': [57,211,83],  '>': [57,211,83],
@@ -590,54 +604,55 @@ resize();initPtcs();frame();
       this.col = CMAP[this.ch];
       this.x   = Math.random()*BW;
       this.y   = scatter ? Math.random()*BH : (Math.random()<.5 ? -16 : BH+16);
-      this.vy  = (Math.random()<.5 ? -1 : 1) * (Math.random()*.35 + .12);
-      this.vx  = (Math.random()-.5) * .04;
-      this.sz  = [14,16,18,20][Math.floor(Math.random()*4)];
-      this.a   = Math.random()*.22 + .10;
+      this.vy  = (Math.random()<.5 ? -1 : 1) * (Math.random()*.3 + .1);
+      this.vx  = (Math.random()-.5) * .03;
+      this.sz  = [15,18,21][Math.floor(Math.random()*3)];
+      this.a   = Math.random()*.38 + .22;
       this.life = 0;
-      this.maxLife = 500 + Math.random()*700;
+      this.maxLife = 600 + Math.random()*600;
     }
     constructor() { this.reset(true); }
     update() {
       this.x += this.vx; this.y += this.vy; this.life++;
-      this.x += Math.sin(this.life*.025 + this.x*.01)*.18;
+      this.x += Math.sin(this.life*.02 + this.x*.008)*.15;
       if(this.life > this.maxLife || this.y < -30 || this.y > BH+30) this.reset(false);
     }
     draw() {
       const [r,g,b] = this.col;
-      const fi = Math.min(1, this.life/40);
-      const fo = Math.min(1, (this.maxLife-this.life)/40);
+      const fi = Math.min(1, this.life/60);
+      const fo = Math.min(1, (this.maxLife-this.life)/60);
       const alpha = this.a * fi * fo;
-      if(alpha < .005) return;
-      bx.save();
+      if(alpha < .01) return;
       bx.globalAlpha = alpha;
       bx.fillStyle   = `rgb(${r},${g},${b})`;
-      bx.shadowColor = `rgba(${r},${g},${b},.7)`;
-      bx.shadowBlur  = 6;
+      bx.shadowColor = `rgba(${r},${g},${b},.9)`;
+      bx.shadowBlur  = 8;
       bx.font        = `${this.sz}px "Share Tech Mono",monospace`;
       bx.fillText(this.ch, this.x, this.y);
-      bx.restore();
     }
   }
-
   let bPtcs = [];
+  let _lastT = 0;
   function bResize() {
     BW = bc.width  = window.innerWidth;
     BH = bc.height = window.innerHeight;
     bPtcs = [];
-    const n = Math.floor((BW*BH)/18000);
+    const n = Math.floor((BW*BH)/22000);
     for(let i=0; i<n; i++) bPtcs.push(new BPtc());
   }
-  function bFrame() {
+  function bFrame(ts) {
+    if(ts - _lastT < 33) { requestAnimationFrame(bFrame); return; }
+    _lastT = ts;
     bx.clearRect(0,0,BW,BH);
+    bx.save();
     bPtcs.forEach(p => { p.update(); p.draw(); });
+    bx.restore();
     requestAnimationFrame(bFrame);
   }
   window.addEventListener('resize', bResize);
   bResize(); bFrame();
 })();
 </script>
-
 <script async src="https://platform.twitter.com/widgets.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
