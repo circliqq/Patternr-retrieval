@@ -617,18 +617,10 @@ resize();initPtcs();frame();
       this.x += Math.sin(this.life*.02 + this.x*.008)*.15;
       if(this.life > this.maxLife || this.y < -30 || this.y > BH+30) this.reset(false);
     }
-    draw() {
-      const [r,g,b] = this.col;
+    draw(ctx) {
       const fi = Math.min(1, this.life/60);
       const fo = Math.min(1, (this.maxLife-this.life)/60);
-      const alpha = this.a * fi * fo;
-      if(alpha < .01) return;
-      bx.globalAlpha = alpha;
-      bx.fillStyle   = `rgb(${r},${g},${b})`;
-      bx.shadowColor = `rgba(${r},${g},${b},.9)`;
-      bx.shadowBlur  = 8;
-      bx.font        = `${this.sz}px "Share Tech Mono",monospace`;
-      bx.fillText(this.ch, this.x, this.y);
+      this.alpha = this.a * fi * fo;
     }
   }
   let bPtcs = [];
@@ -637,16 +629,30 @@ resize();initPtcs();frame();
     BW = bc.width  = window.innerWidth;
     BH = bc.height = window.innerHeight;
     bPtcs = [];
-    const n = Math.floor((BW*BH)/22000);
+    const n = Math.floor((BW*BH)/28000);
     for(let i=0; i<n; i++) bPtcs.push(new BPtc());
   }
+  /* batch by font-size to minimise ctx state changes */
+  const FONTS = [15,18,21];
   function bFrame(ts) {
-    if(ts - _lastT < 33) { requestAnimationFrame(bFrame); return; }
+    if(ts - _lastT < 40) { requestAnimationFrame(bFrame); return; }
     _lastT = ts;
     bx.clearRect(0,0,BW,BH);
-    bx.save();
-    bPtcs.forEach(p => { p.update(); p.draw(); });
-    bx.restore();
+    bx.shadowBlur = 0;
+    bPtcs.forEach(p => p.update());
+    for(const sz of FONTS) {
+      bx.font = `${sz}px "Share Tech Mono",monospace`;
+      for(const p of bPtcs) {
+        if(p.sz !== sz) continue;
+        p.draw();
+        if(p.alpha < .01) continue;
+        const [r,g,b] = p.col;
+        bx.globalAlpha = p.alpha;
+        bx.fillStyle = `rgb(${r},${g},${b})`;
+        bx.fillText(p.ch, p.x, p.y);
+      }
+    }
+    bx.globalAlpha = 1;
     requestAnimationFrame(bFrame);
   }
   window.addEventListener('resize', bResize);
